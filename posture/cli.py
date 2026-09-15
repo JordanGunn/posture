@@ -15,6 +15,8 @@ from .core import (
     set_active,
     show_active,
 )
+from .hook import main as hook_main
+from .integration import bootstrap_repo, install_providers
 
 
 def _root(value: str | None) -> Path:
@@ -39,7 +41,30 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("show", help="Show the active posture and definition drift.")
     sub.add_parser("list", help="List available postures.")
     sub.add_parser("render", help="Render canonical context for the active posture.")
+    sub.add_parser(
+        "bootstrap",
+        help="Initialize repository-local POSTURE state without agent integrations.",
+    )
+
+    install_parser = sub.add_parser(
+        "install",
+        help="Install POSTURE hooks and skills into an already-bootstrapped repository.",
+    )
+    install_parser.add_argument(
+        "--provider",
+        action="append",
+        choices=("claude", "codex"),
+        dest="providers",
+        help="Provider to integrate. Repeat to select several. Defaults to both.",
+    )
+
+    sub.add_parser("hook", help=argparse.SUPPRESS)
     return parser
+
+
+def _print_changes(changes: list[object]) -> None:
+    for change in changes:
+        print(f"{change.action}: {change.path}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -82,6 +107,20 @@ def main(argv: list[str] | None = None) -> int:
             if rendered:
                 print(rendered)
             return 0
+
+        if args.command == "bootstrap":
+            _print_changes(bootstrap_repo(root))
+            print("POSTURE repository state initialized.")
+            return 0
+
+        if args.command == "install":
+            providers = args.providers or ["claude", "codex"]
+            _print_changes(install_providers(root, providers))
+            print("POSTURE provider integration installed.")
+            return 0
+
+        if args.command == "hook":
+            return hook_main(root)
 
     except PostureError as exc:
         print(f"posture: {exc}", file=sys.stderr)

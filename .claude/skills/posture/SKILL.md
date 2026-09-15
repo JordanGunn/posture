@@ -16,7 +16,7 @@ Interpret `$ARGUMENTS` as one of:
 Run:
 
 ```bash
-python3 -m posture $ARGUMENTS
+posture $ARGUMENTS
 ```
 
 Do not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.
