@@ -85,7 +85,25 @@ class PostureTests(unittest.TestCase):
         self.assertIn("Continuity prior — supersede", rendered)
 
     def test_legacy_builtin_state_migrates(self) -> None:
-        body = "legacy bundled migration posture"
+        body = """# Migration
+
+## Stance
+
+The current implementation may contain transitional, superseded, or hastily established architecture. Do not treat existence as proof that a structure should survive.
+
+## Defaults
+
+- Backward compatibility is not presumed necessary.
+- Prefer coherent replacement over fusion of old and new designs.
+- Treat architectural friction as something to investigate rather than automatically accommodate.
+- Follow directly coupled consequences when required to complete a correction coherently.
+- Removal is legitimate when the original justification no longer applies.
+
+## Boundary
+
+These are decision priors, not conclusions. Existing evidence may establish that legacy behavior, compatibility, or structure remains necessary.
+
+Do not expand into unrelated cleanup merely because improvement is possible."""
         state_dir = self.root / ".posture"
         state_dir.mkdir(parents=True)
         (state_dir / "active.json").write_text(json.dumps({"schema_version": 1, "name": "migration", "sha256": hashlib.sha256(body.encode()).hexdigest(), "source": "builtin:migration", "body": body}), encoding="utf-8")
