@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && python3 -m posture.hook",
+            "timeout": 5,
+            "additionalContextLimit": 1200
+          }
+        ]
+      }
+    ]
+  }
+}
