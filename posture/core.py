@@ -22,6 +22,11 @@ LOCAL_PRESETS_DIR = "presets"
 LEGACY_DEFINITIONS_DIR = "postures"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
+LEGACY_BUILTIN_HASHES = {
+    "migration": "aa3773e6ce5b132ce93568ffd33d62759e6eefe970b8f169b3216602b94d7e78",
+    "maintenance": "8779c8c98cba6255a4533259e8592c8f3d59f56c30062e124cf137e72cb91747",
+}
+
 RUNTIME_CONTRACT = """POSTURE declares standing explicitly delegated by the human.
 Apply it when ambiguity would otherwise make you defer, stay local, or preserve the existing state.
 
@@ -338,11 +343,18 @@ def migrate_repo(root: Path | str) -> MigrationResult:
         raise PostureError(f"Unsupported POSTURE state schema: {schema_version!r}")
 
     name, source = _validate_legacy_state(raw)
-    if source != f"builtin:{name}":
+    legacy_hash = raw["sha256"]
+    expected_legacy_hash = LEGACY_BUILTIN_HASHES.get(name)
+    if (
+        source != f"builtin:{name}"
+        or expected_legacy_hash is None
+        or legacy_hash != expected_legacy_hash
+    ):
         raise PostureError(
-            f"Legacy active posture {name!r} came from {source!r}. POSTURE will not infer "
-            "structured authorization from arbitrary prose. Clear it and explicitly set or "
-            "author a bounded JSON preset under `.posture/presets/`."
+            f"Legacy active posture {name!r} is not an exact known bundled definition. "
+            "POSTURE will not infer structured authorization from arbitrary or modified prose. "
+            "Clear it and explicitly set or author a bounded JSON preset under "
+            "`.posture/presets/`."
         )
 
     try:
