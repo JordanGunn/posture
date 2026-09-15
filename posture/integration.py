@@ -23,7 +23,7 @@ CODEX_LEGACY_COMMANDS = {
 
 CLAUDE_SKILL = """---
 name: posture
-description: Set, clear, inspect, or list the repository's persistent POSTURE. Invoke explicitly when the user wants to change or inspect the agent's operating stance.
+description: Set, clear, inspect, list, or migrate the repository's bounded POSTURE. Invoke explicitly when the user wants to change or inspect the agent's delegated standing.
 disable-model-invocation: true
 ---
 
@@ -35,6 +35,7 @@ Interpret `$ARGUMENTS` as one of:
 - `clear`
 - `show`
 - `list`
+- `migrate`
 
 Run:
 
@@ -42,12 +43,13 @@ Run:
 posture $ARGUMENTS
 ```
 
+POSTURE is a bounded schema over epistemic authority, read reach, write reach, and continuity prior.
 Do not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.
 """
 
 CODEX_SKILL = """---
 name: posture
-description: Set, clear, inspect, or list the repository's persistent POSTURE. Use only when the user explicitly wants to change or inspect the agent's operating stance.
+description: Set, clear, inspect, list, or migrate the repository's bounded POSTURE. Use only when the user explicitly wants to change or inspect the agent's delegated standing.
 ---
 
 Manage repository POSTURE state using the provider-agnostic CLI.
@@ -58,6 +60,7 @@ Interpret the user's requested posture operation as one of:
 - `clear`
 - `show`
 - `list`
+- `migrate`
 
 Run the corresponding command:
 
@@ -65,16 +68,21 @@ Run the corresponding command:
 posture <operation>
 ```
 
+POSTURE is a bounded schema over epistemic authority, read reach, write reach, and continuity prior.
 Do not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.
 """
 
 CODEX_OPENAI_YAML = """interface:
   display_name: "POSTURE"
-  short_description: "Set or inspect the repository's anchored agent posture."
+  short_description: "Set or inspect the repository's bounded agent posture."
 
 policy:
   allow_implicit_invocation: false
 """
+
+CLAUDE_LEGACY_SKILLS = {'---\nname: posture\ndescription: Set, clear, inspect, or list the repository\'s persistent POSTURE. Invoke explicitly when the user wants to change or inspect the agent\'s operating stance.\ndisable-model-invocation: true\n---\n\nManage repository POSTURE state using the provider-agnostic CLI.\n\nInterpret `$ARGUMENTS` as one of:\n\n- `set <name>`\n- `clear`\n- `show`\n- `list`\n\nRun:\n\n```bash\nposture $ARGUMENTS\n```\n\nDo not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.\n'}
+CODEX_LEGACY_SKILLS = {'---\nname: posture\ndescription: Set, clear, inspect, or list the repository\'s persistent POSTURE. Use only when the user explicitly wants to change or inspect the agent\'s operating stance.\n---\n\nManage repository POSTURE state using the provider-agnostic CLI.\n\nInterpret the user\'s requested posture operation as one of:\n\n- `set <name>`\n- `clear`\n- `show`\n- `list`\n\nRun the corresponding command:\n\n```bash\nposture <operation>\n```\n\nDo not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.\n'}
+CODEX_LEGACY_YAMLS = {'interface:\n  display_name: "POSTURE"\n  short_description: "Set or inspect the repository\'s anchored agent posture."\n\npolicy:\n  allow_implicit_invocation: false\n'}
 
 
 @dataclass(frozen=True)
@@ -87,18 +95,41 @@ def _relative(path: Path, root: Path) -> str:
     return str(path.relative_to(root))
 
 
-def _check_owned(path: Path, content: str, root: Path) -> None:
-    if path.exists() and path.read_text(encoding="utf-8") != content:
+def _check_owned(
+    path: Path,
+    content: str,
+    root: Path,
+    legacy_contents: set[str] | None = None,
+) -> None:
+    if not path.exists():
+        return
+    existing = path.read_text(encoding="utf-8")
+    if existing == content or existing in (legacy_contents or set()):
+        return
+    raise PostureError(
+        f"Refusing to overwrite existing {path.relative_to(root)}. "
+        "Move or reconcile that file explicitly, then retry."
+    )
+
+
+def _write_owned(
+    path: Path,
+    content: str,
+    root: Path,
+    legacy_contents: set[str] | None = None,
+) -> Change:
+    """Create or migrate a POSTURE-owned file without overwriting foreign content."""
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if existing == content:
+            return Change(_relative(path, root), "unchanged")
+        if existing in (legacy_contents or set()):
+            path.write_text(content, encoding="utf-8")
+            return Change(_relative(path, root), "updated")
         raise PostureError(
             f"Refusing to overwrite existing {path.relative_to(root)}. "
             "Move or reconcile that file explicitly, then retry."
         )
-
-
-def _write_owned(path: Path, content: str, root: Path) -> Change:
-    """Create a POSTURE-owned file without overwriting foreign content."""
-    if path.exists():
-        return Change(_relative(path, root), "unchanged")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return Change(_relative(path, root), "created")
@@ -108,7 +139,7 @@ def bootstrap_repo(root: Path | str) -> list[Change]:
     """Initialize repository-local POSTURE state without provider integration."""
     root = Path(root).resolve()
     state_dir = root / STATE_DIR
-    (state_dir / "postures").mkdir(parents=True, exist_ok=True)
+    (state_dir / "presets").mkdir(parents=True, exist_ok=True)
 
     ignore_path = state_dir / ".gitignore"
     if not ignore_path.exists():
@@ -222,6 +253,7 @@ def _preflight_claude(root: Path) -> None:
         root / ".claude" / "skills" / "posture" / "SKILL.md",
         CLAUDE_SKILL,
         root,
+        CLAUDE_LEGACY_SKILLS,
     )
 
 
@@ -231,11 +263,13 @@ def _preflight_codex(root: Path) -> None:
         root / ".agents" / "skills" / "posture" / "SKILL.md",
         CODEX_SKILL,
         root,
+        CODEX_LEGACY_SKILLS,
     )
     _check_owned(
         root / ".agents" / "skills" / "posture" / "agents" / "openai.yaml",
         CODEX_OPENAI_YAML,
         root,
+        CODEX_LEGACY_YAMLS,
     )
 
 
@@ -251,6 +285,7 @@ def _install_claude(root: Path) -> list[Change]:
             root / ".claude" / "skills" / "posture" / "SKILL.md",
             CLAUDE_SKILL,
             root,
+            CLAUDE_LEGACY_SKILLS,
         ),
     ]
 
@@ -268,11 +303,13 @@ def _install_codex(root: Path) -> list[Change]:
             root / ".agents" / "skills" / "posture" / "SKILL.md",
             CODEX_SKILL,
             root,
+            CODEX_LEGACY_SKILLS,
         ),
         _write_owned(
             root / ".agents" / "skills" / "posture" / "agents" / "openai.yaml",
             CODEX_OPENAI_YAML,
             root,
+            CODEX_LEGACY_YAMLS,
         ),
     ]
 
@@ -292,7 +329,6 @@ def install_providers(
     if unknown:
         raise PostureError(f"Unsupported provider(s): {', '.join(unknown)}")
 
-    # Preflight every selected provider before modifying any provider file.
     for provider in normalized:
         if provider == "claude":
             _preflight_claude(root)

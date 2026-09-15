@@ -1,38 +1,50 @@
-# POSTURE through HAD
+# HAD Design
 
-POSTURE is intentionally small:
+POSTURE is designed using three distinct instruments:
 
-> **H establishes and revokes the stance. D anchors and supplies the stance. A reasons under the stance.**
+> **H establishes and revokes the standing.  
+> D validates, anchors, migrates, and supplies it.  
+> A reasons within it.**
 
-| Concern | H — Human | A — Inference | D — Determinism |
+## H — Human
+
+The human selects or clears an active posture, authors or approves bounded repository presets, and determines when project conditions justify changing the posture.
+
+## D — Determinism
+
+The deterministic layer validates profiles against the bounded schema, rejects unknown fields and invalid enum values, enforces `write reach <= read reach`, resolves presets, snapshots the exact active profile, detects drift, reinjects the profile, and migrates only legacy state with provable semantics.
+
+D holds the prior. It does not decide how that prior applies to an individual case.
+
+## A — Inference
+
+The agent applies epistemic authority to ambiguous claims and framing, uses read reach to decide when broader investigation is permitted, uses write reach to determine whether consequences may be propagated, and uses continuity as a prior when deciding between preservation and supersession.
+
+A may recommend a posture transition. It does not silently redefine or activate posture.
+
+## Meaningful ambiguity
+
+| | H | A | D |
 |---|---|---|---|
-| Define posture | Determines and approves the stance | May help draft it | Stores canonical definitions |
-| Select / clear | Explicitly establishes or revokes | May recommend, never self-activate | Performs the state transition |
-| Persistence | — | Does not remember | Stores repo-scoped state |
-| Injection | — | Receives posture as context | Reinjects the exact snapshot each prompt |
-| Interpretation | Sets the prior | Resolves concrete ambiguity | Does not interpret prose |
-| Evidence conflict | — | Evidence wins | — |
-| Local explicit override | Supplies the requirement | Applies it to that decision | Leaves persistent posture unchanged |
-| Permissions | Grants separately | Cannot infer new authority | Existing security/tool gates remain authoritative |
+| Define delegated standing | chooses | may advise | validates |
+| Persist standing | — | — | owns |
+| Apply standing to a case | — | owns | supplies |
+| Infer facts | may supply | owns | does not |
+| Change active posture | authorizes | may recommend | executes |
+| Migrate legacy prose | decides if needed | does **not** infer authority | maps only known semantics |
 
-## Invariants
+The key boundary is that structured POSTURE values alter the **burden of proof**, not the outcome.
 
-1. Posture influences judgment; it does not manufacture facts.
-2. Posture supplies defaults; explicit current requirements can override them locally.
-3. Evidence can defeat the posture prior.
-4. A local override does not mutate persistent posture.
-5. POSTURE never bypasses external permissions or safety boundaries.
-6. Only trusted human-authorized control establishes, replaces, or clears persistent posture.
-7. The canonical posture is deterministically reinjected; the agent never has to remember it.
-8. v0 supports zero or one active posture.
-9. Posture remains small: it describes a stance, not the project, goal, architecture, or personality.
-10. The agent may recommend a posture transition but cannot self-modify it.
+For example, `continuity=supersede` does not mean “delete legacy code.” It means existing code has no preservation claim merely because it exists. Evidence may still establish a real compatibility requirement.
 
-## v0
+Likewise `epistemic=reconstruct` does not mean “ignore the user.” It means the user's explanatory model is defeasible while explicit requirements and intent remain authoritative.
 
-The first experiment deliberately provides two opposed priors:
+## Read/write separation
 
-- **migration** — compatibility is not presumed; prefer coherent replacement over fusion.
-- **maintenance** — existing behavior is presumptively intentional; prefer localized compatible changes.
+POSTURE preserves the distinction between seeing and doing. An agent can be granted broad read reach with narrow write reach, such as `R=system, W=named`. The inverse is invalid and rejected deterministically.
 
-The useful experiment is to hold repository, task, model, and tools constant while varying only the active posture.
+## Why free-form posture was removed
+
+The original v0.1 design allowed arbitrary Markdown posture bodies. This made the abstraction dangerously open: a posture could become a goal, rulebook, persona, or prompt; an agent could author new standing using unconstrained prose; equivalent concepts could drift lexically; and migration had no mechanical validation surface.
+
+The bounded schema closes that surface while keeping inference where it belongs: in applying the declared standing to real cases.

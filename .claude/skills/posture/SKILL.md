@@ -1,6 +1,6 @@
 ---
 name: posture
-description: Set, clear, inspect, or list the repository's persistent POSTURE. Invoke explicitly when the user wants to change or inspect the agent's operating stance.
+description: Set, clear, inspect, list, or migrate the repository's bounded POSTURE. Invoke explicitly when the user wants to change or inspect the agent's delegated standing.
 disable-model-invocation: true
 ---
 
@@ -12,6 +12,7 @@ Interpret `$ARGUMENTS` as one of:
 - `clear`
 - `show`
 - `list`
+- `migrate`
 
 Run:
 
@@ -19,4 +20,5 @@ Run:
 posture $ARGUMENTS
 ```
 
+POSTURE is a bounded schema over epistemic authority, read reach, write reach, and continuity prior.
 Do not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.

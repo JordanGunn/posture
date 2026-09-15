@@ -1,169 +1,201 @@
 # POSTURE
 
-Persistent, anchored context for holding an AI agent's decision posture in place across volatile prompts and long-running work.
+Bounded, persistent context for declaring the standing an AI agent has when ambiguity would otherwise make it defer, stay local, or preserve existing state.
 
 > **H establishes and revokes the stance. D anchors and supplies the stance. A reasons under the stance.**
 
-POSTURE is persistent context that controls **how an agent should regard and resolve what it encounters while doing the work**, without specifying the work itself.
+POSTURE does not specify the work. It specifies how much latitude the human delegates while the work is being interpreted and carried out.
 
-A goal says *what state are we trying to reach?* A directive says *what are we doing now?* POSTURE says *how should I regard what I encounter while doing it?*
+A goal says **what state are we trying to reach?** A directive says **what are we doing now?** POSTURE says **what am I authorized to question, inspect, change, and preserve while doing it?**
 
 ## Why
 
-Chat is intentionally volatile. Architectural stance usually should not be.
+Chat is intentionally volatile. Delegated standing usually should not be.
 
-Long-running agentic work often fails when an old or transitional implementation is treated as authoritative simply because the current prompt did not explicitly revoke it. The agent conservatively merges the requested correction into the stale architecture, producing fusion instead of remediation.
+Agentic systems carry conservative defaults for good reasons: do not challenge the user unnecessarily; do not investigate outside requested scope unnecessarily; do not modify things that were not mentioned unnecessarily; do not remove established behavior unnecessarily.
 
-POSTURE gives slow-moving decision context somewhere slow to live.
+POSTURE makes explicit when the human wants different burdens of proof.
 
-It is deliberately not RAG, memory, a planning system, a sub-agent, or another project instruction file. v0 is a small deterministic mechanism that repeatedly supplies a small human-selected reasoning prior.
+## Bounded model
+
+POSTURE v0.2 removes free-form posture prose. A posture is a validated profile over four bounded fields:
+
+```text
+E — epistemic authority
+R — read reach
+W — write reach
+C — continuity prior
+```
+
+### E — Epistemic authority
+
+```text
+literal       Treat the human's framing as authoritative.
+complete      Fill ordinary gaps without replacing the human's model.
+challenge     Correct material mistakes or contradictions when evidence warrants.
+reconstruct   Treat articulation as evidence of intent; reconstruct the problem when necessary.
+```
+
+### R — Read reach
+
+```text
+named         Named scope only.
+adjacent      Immediate dependencies, dependents, and neighbors.
+closure       Follow materially relevant dependency/coupling chains.
+system        Inspect project/system-wide context where materially relevant.
+```
+
+### W — Write reach
+
+```text
+named         Named scope only.
+coupled       Directly coupled artifacts when required for coherence.
+closure       Relevant dependency closure when required for coherence.
+systemic      System-wide until the relevant invariant is restored.
+```
+
+POSTURE enforces `W <= R`: the agent cannot be authorized to modify farther than it may inspect.
+
+### C — Continuity prior
+
+```text
+preserve      Existing behavior/structure has a positive preservation prior.
+neutral       Existing state receives no special preservation or replacement weight.
+supersede     Existing state may be transitional; replacement may be preferred over fusion.
+```
+
+Continuity is a prior, not a conclusion. Evidence, hard constraints, and explicit current requirements still win.
+
+See [`docs/SCHEMA.md`](docs/SCHEMA.md) for canonical semantics.
+
+## Presets
+
+Named postures are presets over the bounded axes, not free-form instructions.
+
+```text
+maintenance  E=complete   R=closure   W=coupled   C=preserve
+migration    E=challenge  R=system    W=closure   C=supersede
+```
+
+Repository-specific presets may be committed under `.posture/presets/<name>.json`:
+
+```json
+{
+  "schema_version": 1,
+  "epistemic": "reconstruct",
+  "read": "closure",
+  "write": "coupled",
+  "continuity": "neutral"
+}
+```
+
+Unknown fields and invalid values are rejected. Arbitrary prose is not part of the posture schema.
 
 ## Installation lifecycle
 
-POSTURE separates installing the tool from preparing and integrating a repository.
-
-### 1. Install the tool
-
-The installer copies the stdlib-only POSTURE package under `~/.local/share/posture` and exposes the CLI at `~/.local/bin/posture`.
+Install the tool:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JordanGunn/posture/master/install.sh | sh
 ```
 
-For inspection before execution:
+The installer requires only Python 3.10+. It does not require pip, venv support, or sudo.
 
-```bash
-curl -fsSLO https://raw.githubusercontent.com/JordanGunn/posture/master/install.sh
-sh install.sh
-```
-
-The installer requires only Python 3.10+. It does **not** require `pip`, `venv`, `python3-venv`, or sudo, and it does not modify a repository.
-
-Re-running the installer updates the installed package in place. It also removes the obsolete virtual environment used by the earliest installer version, if present.
-
-For development from a local clone, normal editable installation remains available:
-
-```bash
-python3 -m pip install -e .
-```
-
-### 2. Bootstrap a repository
-
-From inside a Git repository:
+Bootstrap a repository:
 
 ```bash
 posture bootstrap
 ```
 
-This initializes only POSTURE's repository-local state:
+This initializes `.posture/.gitignore` and `.posture/presets/` without configuring a provider.
 
-```text
-.posture/
-├── .gitignore       # keeps active.json local
-└── postures/        # optional repository-specific definitions
-```
-
-It does not configure Claude, Codex, or any other provider.
-
-### 3. Install provider integration
-
-After bootstrapping:
+Install provider integration:
 
 ```bash
 posture install
-```
-
-By default this wires both Claude Code and Codex. To install only one provider:
-
-```bash
 posture install --provider claude
 posture install --provider codex
 ```
 
-The installer merges POSTURE hooks into existing JSON configuration while preserving unrelated keys. It is idempotent and refuses to overwrite a conflicting existing POSTURE skill file.
-
-### 4. Set a posture
+Set a posture:
 
 ```bash
 posture set migration
 ```
 
-From then on the active posture is deterministically injected on every supported prompt until the human explicitly changes or clears it.
+From then on the active profile is deterministically injected on every supported prompt until the human changes or clears it.
 
-## v0
+## Migrating from free-form POSTURE
 
-Two deliberately opposed postures are bundled:
+v0.1 stored arbitrary Markdown posture bodies. v0.2 intentionally does not interpret that prose as structured authorization.
 
-- `migration`: existing architecture may be transitional; compatibility is not presumed; prefer coherent replacement over fusion.
-- `maintenance`: established behavior is presumptively intentional; prefer localized compatible changes.
+After updating the tool, run:
 
-Only zero or one posture can be active.
+```bash
+posture migrate
+```
 
-### Control
+Migration is conservative:
+
+- a legacy active built-in `migration` or `maintenance` posture is mapped deterministically to its new bounded preset;
+- an already-current structured posture is validated and left unchanged;
+- legacy custom Markdown files are detected and reported but **not inferred into axis values**;
+- a legacy active custom/free-form posture is refused until the human explicitly clears it and chooses or authors a bounded preset.
+
+POSTURE will not infer new delegated authority from old arbitrary prose.
+
+Existing v0 provider skills are recognized by `posture install` and upgraded to the bounded skill definition. Foreign files remain protected.
+
+## Control
 
 ```bash
 posture list
 posture set migration
 posture show
+posture render
+posture migrate
 posture clear
 ```
 
+`show` exposes the active axes. `render` shows the canonical context block injected into the agent.
+
 The active state is stored locally in `.posture/active.json` and is intentionally gitignored.
 
-### Definition snapshots
+### Snapshot semantics
 
-`set` snapshots the exact posture text and its SHA-256 hash into active state. If a posture definition changes later, the active posture **does not silently change**. `show` reports definition drift; the human must run `set` again to adopt the new definition.
-
-Repository-specific definitions may be committed at:
-
-```text
-.posture/postures/<name>.md
-```
-
-They override bundled definitions of the same name.
-
-## Agent integration
-
-The core is provider-agnostic. `posture hook` renders one canonical context block. Provider configuration only decides how that block reaches the model.
-
-### Claude Code
-
-`.claude/settings.json` registers a `UserPromptSubmit` hook. Claude Code injects the returned `additionalContext` alongside every submitted prompt.
-
-A project skill is installed at `.claude/skills/posture/SKILL.md` for explicit posture control.
-
-### Codex
-
-`.codex/hooks.json` registers the same `UserPromptSubmit` hook. Codex injects the returned `additionalContext` as developer context.
-
-A repo skill is installed at `.agents/skills/posture/SKILL.md`. Its OpenAI metadata disables implicit invocation so posture mutation stays explicit.
-
-Project-local hooks are subject to each provider's workspace/trust controls.
+`set` snapshots the exact structured profile and its SHA-256 hash. If the source preset changes later, the active posture does **not** silently change. `show` reports preset drift; the human must run `set` again to adopt the new profile.
 
 ## Runtime contract
 
-Every active posture is wrapped in a provider-independent contract:
+Every active profile is wrapped in a provider-independent contract:
 
-- posture is a default over judgment, not a fact or predetermined conclusion;
-- explicit current requirements and direct evidence override posture defaults for the current decision;
-- local overrides do not mutate persistent posture;
-- posture does not elevate permissions;
-- posture does not justify unrelated cleanup.
+- POSTURE changes the burden of proof; it does not predetermine conclusions;
+- explicit current requirements, hard constraints, and direct evidence override posture defaults;
+- a local override does not mutate persistent posture;
+- POSTURE does not elevate external permissions;
+- read/write reach are ceilings, not obligations to expand scope;
+- unrelated cleanup is not authorized merely because broader action is permitted.
 
-This is designed to change the **burden of proof**, not predetermine the answer.
+The bounded values are compiled into canonical agent-facing language by POSTURE itself. Preset files do not contain arbitrary instructions.
 
 ## Architecture
 
 ```text
 Human
-  │  set / clear
+  │  set / clear / migrate
   ▼
-deterministic repo state
+validated bounded preset
   │
-  ├── canonical snapshot + hash
+  ├── E epistemic authority
+  ├── R read reach
+  ├── W write reach
+  └── C continuity prior
   │
   ▼
-shared renderer
+deterministic snapshot + hash
+  │
+  ▼
+canonical renderer
   │
   ├───────────────┐
   ▼               ▼
@@ -174,7 +206,15 @@ Claude hook     Codex hook
       inference
 ```
 
-The providers do not have separate meanings for `migration`. They receive the same rendered snapshot.
+The provider does not define what `migration` means. The preset selects bounded values; the shared renderer owns their canonical semantics.
+
+## HAD
+
+> **H establishes and revokes the standing. D validates, anchors, migrates, and supplies it. A reasons within it.**
+
+A may recommend a change of posture. It does not silently redefine or activate one.
+
+See [`docs/HAD.md`](docs/HAD.md).
 
 ## Test
 
@@ -182,25 +222,10 @@ The providers do not have separate meanings for `migration`. They receive the sa
 python3 -m unittest discover -s tests -v
 ```
 
-The initial experiment is intentionally simple:
+The structured model enables both preset-level and axis-isolation experiments. Measure outcomes rather than whether the model repeats posture language: fusion vs replacement, unnecessary compatibility, scope expansion, preservation of real contracts, corrections to flawed framing, unrelated refactoring, clarification loops, downstream rework, and total token cost to an acceptable result.
 
-```text
-same repository
-same task
-same model
-same tools
+## Non-goals
 
-A: no posture
-B: migration posture
-C: maintenance posture
-```
+No automatic posture selection, automatic switching, dynamic composition, RAG, embeddings, vector stores, supervisory sub-agents, semantic classification, or arbitrary free-form posture instructions.
 
-Measure whether the posture changes ambiguous decisions appropriately: fusion vs. replacement, unnecessary compatibility, scope expansion, preservation of real contracts, unrelated refactoring, clarification loops, downstream rework, and total token cost to an acceptable result.
-
-## Non-goals for v0
-
-No automatic posture selection, automatic switching, dynamic composition, RAG, embeddings, vector stores, sub-agents, semantic classification, or large predefined taxonomy.
-
-The mechanism should stay boring until evidence says it needs to become more complicated.
-
-See [`docs/HAD.md`](docs/HAD.md) for the design boundaries.
+The mechanism should remain small enough that its effects can be measured.
