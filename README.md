@@ -6,4 +6,137 @@ Persistent, anchored context for holding an AI agent's decision posture in place
 
 POSTURE is persistent context that controls **how an agent should regard and resolve what it encounters while doing the work**, without specifying the work itself.
 
-This repository contains an experimental, provider-agnostic v0 implementation.
+A goal says *what state are we trying to reach?* A directive says *what are we doing now?* POSTURE says *how should I regard what I encounter while doing it?*
+
+## Why
+
+Chat is intentionally volatile. Architectural stance usually should not be.
+
+Long-running agentic work often fails when an old or transitional implementation is treated as authoritative simply because the current prompt did not explicitly revoke it. The agent conservatively merges the requested correction into the stale architecture, producing fusion instead of remediation.
+
+POSTURE gives slow-moving decision context somewhere slow to live.
+
+It is deliberately not RAG, memory, a planning system, a sub-agent, or another project instruction file. v0 is a small deterministic mechanism that repeatedly supplies a small human-selected reasoning prior.
+
+## v0
+
+Two deliberately opposed postures are bundled:
+
+- `migration`: existing architecture may be transitional; compatibility is not presumed; prefer coherent replacement over fusion.
+- `maintenance`: established behavior is presumptively intentional; prefer localized compatible changes.
+
+Only zero or one posture can be active.
+
+### Control
+
+From the repository root:
+
+```bash
+python3 -m posture list
+python3 -m posture set migration
+python3 -m posture show
+python3 -m posture clear
+```
+
+After installation, the console script provides the same interface:
+
+```bash
+posture set migration
+```
+
+The active state is stored locally in `.posture/active.json` and is intentionally gitignored.
+
+### Definition snapshots
+
+`set` snapshots the exact posture text and its SHA-256 hash into active state. If a posture definition changes later, the active posture **does not silently change**. `show` reports definition drift; the human must run `set` again to adopt the new definition.
+
+Repository-specific definitions may be committed at:
+
+```text
+.posture/postures/<name>.md
+```
+
+They override bundled definitions of the same name.
+
+## Agent integration
+
+The core is provider-agnostic. `posture.hook` renders one canonical context block. Provider configuration only decides how that block reaches the model.
+
+### Claude Code
+
+`.claude/settings.json` registers a `UserPromptSubmit` hook. Claude Code injects the returned `additionalContext` alongside every submitted prompt.
+
+A project skill is also provided at `.claude/skills/posture/SKILL.md` for explicit posture control.
+
+### Codex
+
+`.codex/hooks.json` registers the same `UserPromptSubmit` hook. Codex injects the returned `additionalContext` as developer context.
+
+A repo skill is provided at `.agents/skills/posture/SKILL.md`. Its OpenAI metadata disables implicit invocation so posture mutation stays explicit.
+
+Project-local hooks are subject to each provider's workspace/trust controls.
+
+## Runtime contract
+
+Every active posture is wrapped in a provider-independent contract:
+
+- posture is a default over judgment, not a fact or predetermined conclusion;
+- explicit current requirements and direct evidence override posture defaults for the current decision;
+- local overrides do not mutate persistent posture;
+- posture does not elevate permissions;
+- posture does not justify unrelated cleanup.
+
+This is designed to change the **burden of proof**, not predetermine the answer.
+
+## Architecture
+
+```text
+Human
+  │  set / clear
+  ▼
+deterministic repo state
+  │
+  ├── canonical snapshot + hash
+  │
+  ▼
+shared renderer
+  │
+  ├───────────────┐
+  ▼               ▼
+Claude hook     Codex hook
+  │               │
+  └───────┬───────┘
+          ▼
+      inference
+```
+
+The providers do not have separate meanings for `migration`. They receive the same rendered snapshot.
+
+## Test
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+The initial experiment is intentionally simple:
+
+```text
+same repository
+same task
+same model
+same tools
+
+A: no posture
+B: migration posture
+C: maintenance posture
+```
+
+Measure whether the posture changes ambiguous decisions appropriately: fusion vs. replacement, unnecessary compatibility, scope expansion, preservation of real contracts, unrelated refactoring, clarification loops, downstream rework, and total token cost to an acceptable result.
+
+## Non-goals for v0
+
+No automatic posture selection, automatic switching, dynamic composition, RAG, embeddings, vector stores, sub-agents, semantic classification, or large predefined taxonomy.
+
+The mechanism should stay boring until evidence says it needs to become more complicated.
+
+See [`docs/HAD.md`](docs/HAD.md) for the design boundaries.
