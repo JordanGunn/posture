@@ -24,7 +24,7 @@ POSTURE separates installing the tool from preparing and integrating a repositor
 
 ### 1. Install the tool
 
-The tool installer creates an isolated virtual environment under `~/.local/share/posture` and exposes the CLI at `~/.local/bin/posture`.
+The installer copies the stdlib-only POSTURE package under `~/.local/share/posture` and exposes the CLI at `~/.local/bin/posture`.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JordanGunn/posture/master/install.sh | sh
@@ -37,9 +37,11 @@ curl -fsSLO https://raw.githubusercontent.com/JordanGunn/posture/master/install.
 sh install.sh
 ```
 
-The installer requires Python 3.10+ and Python's `venv` support. It does not modify a repository.
+The installer requires only Python 3.10+. It does **not** require `pip`, `venv`, `python3-venv`, or sudo, and it does not modify a repository.
 
-For development from a local clone:
+Re-running the installer updates the installed package in place. It also removes the obsolete virtual environment used by the earliest installer version, if present.
+
+For development from a local clone, normal editable installation remains available:
 
 ```bash
 python3 -m pip install -e .
