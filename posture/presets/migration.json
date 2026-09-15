@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "epistemic": "challenge",
+  "read": "system",
+  "write": "closure",
+  "continuity": "supersede"
+}

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "posture-agent"
-version = "0.1.0"
-description = "Anchored operating posture for AI agents."
+version = "0.2.0"
+description = "Bounded delegated standing for AI agents."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
@@ -14,4 +14,4 @@ dependencies = []
 posture = "posture.cli:main"
 
 [tool.setuptools.package-data]
-"posture.definitions" = ["*.md"]
+"posture.presets" = ["*.json"]
