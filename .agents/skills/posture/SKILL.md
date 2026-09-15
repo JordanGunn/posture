@@ -15,7 +15,7 @@ Interpret the user's requested posture operation as one of:
 Run the corresponding command:
 
 ```bash
-python3 -m posture <operation>
+posture <operation>
 ```
 
 Do not change posture implicitly. If the user is discussing whether a posture still fits but has not asked to change it, inspect or recommend only.

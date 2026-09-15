@@ -18,6 +18,76 @@ POSTURE gives slow-moving decision context somewhere slow to live.
 
 It is deliberately not RAG, memory, a planning system, a sub-agent, or another project instruction file. v0 is a small deterministic mechanism that repeatedly supplies a small human-selected reasoning prior.
 
+## Installation lifecycle
+
+POSTURE separates installing the tool from preparing and integrating a repository.
+
+### 1. Install the tool
+
+The tool installer creates an isolated virtual environment under `~/.local/share/posture` and exposes the CLI at `~/.local/bin/posture`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JordanGunn/posture/master/install.sh | sh
+```
+
+For inspection before execution:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/JordanGunn/posture/master/install.sh
+sh install.sh
+```
+
+The installer requires Python 3.10+ and Python's `venv` support. It does not modify a repository.
+
+For development from a local clone:
+
+```bash
+python3 -m pip install -e .
+```
+
+### 2. Bootstrap a repository
+
+From inside a Git repository:
+
+```bash
+posture bootstrap
+```
+
+This initializes only POSTURE's repository-local state:
+
+```text
+.posture/
+├── .gitignore       # keeps active.json local
+└── postures/        # optional repository-specific definitions
+```
+
+It does not configure Claude, Codex, or any other provider.
+
+### 3. Install provider integration
+
+After bootstrapping:
+
+```bash
+posture install
+```
+
+By default this wires both Claude Code and Codex. To install only one provider:
+
+```bash
+posture install --provider claude
+posture install --provider codex
+```
+
+The installer merges POSTURE hooks into existing JSON configuration while preserving unrelated keys. It is idempotent and refuses to overwrite a conflicting existing POSTURE skill file.
+
+### 4. Set a posture
+
+```bash
+posture set migration
+```
+
+From then on the active posture is deterministically injected on every supported prompt until the human explicitly changes or clears it.
+
 ## v0
 
 Two deliberately opposed postures are bundled:
@@ -29,19 +99,11 @@ Only zero or one posture can be active.
 
 ### Control
 
-From the repository root:
-
 ```bash
-python3 -m posture list
-python3 -m posture set migration
-python3 -m posture show
-python3 -m posture clear
-```
-
-After installation, the console script provides the same interface:
-
-```bash
+posture list
 posture set migration
+posture show
+posture clear
 ```
 
 The active state is stored locally in `.posture/active.json` and is intentionally gitignored.
@@ -60,19 +122,19 @@ They override bundled definitions of the same name.
 
 ## Agent integration
 
-The core is provider-agnostic. `posture.hook` renders one canonical context block. Provider configuration only decides how that block reaches the model.
+The core is provider-agnostic. `posture hook` renders one canonical context block. Provider configuration only decides how that block reaches the model.
 
 ### Claude Code
 
 `.claude/settings.json` registers a `UserPromptSubmit` hook. Claude Code injects the returned `additionalContext` alongside every submitted prompt.
 
-A project skill is also provided at `.claude/skills/posture/SKILL.md` for explicit posture control.
+A project skill is installed at `.claude/skills/posture/SKILL.md` for explicit posture control.
 
 ### Codex
 
 `.codex/hooks.json` registers the same `UserPromptSubmit` hook. Codex injects the returned `additionalContext` as developer context.
 
-A repo skill is provided at `.agents/skills/posture/SKILL.md`. Its OpenAI metadata disables implicit invocation so posture mutation stays explicit.
+A repo skill is installed at `.agents/skills/posture/SKILL.md`. Its OpenAI metadata disables implicit invocation so posture mutation stays explicit.
 
 Project-local hooks are subject to each provider's workspace/trust controls.
 

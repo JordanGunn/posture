@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 from .core import PostureError, find_repo_root, render_active
 
@@ -12,7 +13,7 @@ def _warning(message: str) -> None:
     print(json.dumps({"systemMessage": f"POSTURE warning: {message}"}))
 
 
-def main() -> int:
+def main(cwd: Path | str | None = None) -> int:
     # Consume the hook payload even though v0 does not inspect the prompt.
     try:
         sys.stdin.read()
@@ -20,7 +21,7 @@ def main() -> int:
         pass
 
     try:
-        root = find_repo_root()
+        root = find_repo_root(cwd)
         rendered = render_active(root)
     except PostureError as exc:
         _warning(str(exc))
