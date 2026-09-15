@@ -10,7 +10,8 @@ from .core import (
     PostureError,
     clear_active,
     find_repo_root,
-    list_postures,
+    list_presets,
+    migrate_repo,
     render_active,
     set_active,
     show_active,
@@ -26,7 +27,7 @@ def _root(value: str | None) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="posture",
-        description="Anchor an AI agent's operating posture at repository scope.",
+        description="Anchor bounded agent standing at repository scope.",
     )
     parser.add_argument(
         "--repo",
@@ -34,13 +35,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    set_parser = sub.add_parser("set", help="Set and snapshot an active posture.")
+    set_parser = sub.add_parser("set", help="Set and snapshot a structured posture preset.")
     set_parser.add_argument("name")
 
     sub.add_parser("clear", help="Clear the active posture.")
-    sub.add_parser("show", help="Show the active posture and definition drift.")
-    sub.add_parser("list", help="List available postures.")
+    sub.add_parser("show", help="Show the active posture and its structured axes.")
+    sub.add_parser("list", help="List available structured posture presets.")
     sub.add_parser("render", help="Render canonical context for the active posture.")
+    sub.add_parser(
+        "migrate",
+        help="Migrate safe legacy POSTURE state to the bounded schema.",
+    )
     sub.add_parser(
         "bootstrap",
         help="Initialize repository-local POSTURE state without agent integrations.",
@@ -67,6 +72,13 @@ def _print_changes(changes: list[object]) -> None:
         print(f"{change.action}: {change.path}")
 
 
+def _print_profile(profile: dict[str, object]) -> None:
+    print(f"epistemic:  {profile['epistemic']}")
+    print(f"read:       {profile['read']}")
+    print(f"write:      {profile['write']}")
+    print(f"continuity: {profile['continuity']}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -77,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "set":
             active = set_active(args.name, root)
             print(f"POSTURE set: {active.name} ({active.sha256[:12]})")
+            _print_profile(active.profile.as_dict())
             return 0
 
         if args.command == "clear":
@@ -94,18 +107,42 @@ def main(argv: list[str] | None = None) -> int:
             print(f"source:  {status['source']}")
             print(f"drifted: {'yes' if status['drifted'] else 'no'}")
             print()
-            print(status["body"])
+            _print_profile(status["profile"])
             return 0
 
         if args.command == "list":
-            for definition in list_postures(root):
-                print(f"{definition.name}\t{definition.source}\t{definition.sha256[:12]}")
+            for preset in list_presets(root):
+                profile = preset.profile
+                print(
+                    f"{preset.name}\t{preset.source}\t"
+                    f"E={profile.epistemic}\tR={profile.read}\t"
+                    f"W={profile.write}\tC={profile.continuity}\t"
+                    f"{preset.sha256[:12]}"
+                )
             return 0
 
         if args.command == "render":
             rendered = render_active(root)
             if rendered:
                 print(rendered)
+            return 0
+
+        if args.command == "migrate":
+            result = migrate_repo(root)
+            if result.active_action == "migrated":
+                print("POSTURE active state migrated to the bounded schema.")
+            elif result.active_action == "already-current":
+                print("POSTURE active state is already current.")
+            else:
+                print("POSTURE has no active state to migrate.")
+            if result.legacy_definitions:
+                print("Legacy free-form definitions were not imported:")
+                for path in result.legacy_definitions:
+                    print(f"  {path}")
+                print(
+                    "Re-author any still-needed posture as a bounded JSON preset "
+                    "under `.posture/presets/`."
+                )
             return 0
 
         if args.command == "bootstrap":

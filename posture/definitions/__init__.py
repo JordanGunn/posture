@@ -1,1 +1,0 @@
-"""Bundled POSTURE definitions."""

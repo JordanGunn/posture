@@ -1,6 +1,6 @@
 interface:
   display_name: "POSTURE"
-  short_description: "Set or inspect the repository's anchored agent posture."
+  short_description: "Set or inspect the repository's bounded agent posture."
 
 policy:
   allow_implicit_invocation: false
